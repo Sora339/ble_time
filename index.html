@@ -31,11 +31,11 @@
             };
 
             try {
-                log("Requesting device (Filter by Service UUID)...");
-                
-                // Now that the packet is fixed (short name), filtering by Service UUID is the most robust method.
+                log("Requesting device...");
+                // Revert to standard configuration
                 const device = await navigator.bluetooth.requestDevice({
-                    filters: [{ services: [SERVICE_UUID] }]
+                    filters: [{ name: "M5BLE" }],
+                    optionalServices: [SERVICE_UUID]
                 });
 
                 log("Device selected: " + device.name);
