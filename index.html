@@ -1,0 +1,29 @@
+<button id="connect">Connect</button>
+<button id="send">Send Time</button>
+<script>
+const SERVICE = '6e400001-b5a3-f393-e0a9-e50e24dcca9e';
+const CHAR    = '6e400002-b5a3-f393-e0a9-e50e24dcca9e';
+let timeChar;
+
+document.getElementById('connect').onclick = async () => {
+  try {
+    const device = await navigator.bluetooth.requestDevice({
+      filters: [{ services: [SERVICE] }] // M5 が広告する Service UUID
+    });
+    const server = await device.gatt.connect();
+    const service = await server.getPrimaryService(SERVICE);
+    timeChar = await service.getCharacteristic(CHAR);
+    alert('Connected');
+  } catch (e) { alert(e); }
+};
+
+document.getElementById('send').onclick = async () => {
+  if (!timeChar) return alert('Connect first');
+  const epoch = Math.floor(Date.now() / 1000);
+  const data = new TextEncoder().encode(String(epoch));
+  try {
+    await timeChar.writeValueWithoutResponse(data); // WithResponse でも可
+    alert('Sent: ' + epoch);
+  } catch (e) { alert(e); }
+};
+</script>
