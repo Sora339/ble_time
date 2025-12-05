@@ -1,29 +1,74 @@
-<button id="connect">Connect</button>
-<button id="send">Send Time</button>
-<script>
-const SERVICE = '6e400001-b5a3-f393-e0a9-e50e24dcca9e';
-const CHAR    = '6e400002-b5a3-f393-e0a9-e50e24dcca9e';
-let timeChar;
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>M5StickC PLUS2 Time Sync</title>
+    <style>
+        body { font-family: sans-serif; text-align: center; padding: 20px; }
+        button { padding: 15px 30px; font-size: 18px; background-color: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        button:disabled { background-color: #ccc; }
+        #status { margin-top: 20px; color: #333; }
+    </style>
+</head>
+<body>
+    <h1>M5StickC PLUS2 Time Sync</h1>
+    <p>ボタンを押してデバイスを選択すると、自動で現在時刻を送信します。</p>
+    <button id="connectBtn">Connect & Sync</button>
+    <div id="status"></div>
 
-document.getElementById('connect').onclick = async () => {
-  try {
-    const device = await navigator.bluetooth.requestDevice({
-      filters: [{ services: [SERVICE] }] // M5 が広告する Service UUID
-    });
-    const server = await device.gatt.connect();
-    const service = await server.getPrimaryService(SERVICE);
-    timeChar = await service.getCharacteristic(CHAR);
-    alert('Connected');
-  } catch (e) { alert(e); }
-};
+    <script>
+        const SERVICE_UUID = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
+        const RX_UUID = "6e400002-b5a3-f393-e0a9-e50e24dcca9e";
 
-document.getElementById('send').onclick = async () => {
-  if (!timeChar) return alert('Connect first');
-  const epoch = Math.floor(Date.now() / 1000);
-  const data = new TextEncoder().encode(String(epoch));
-  try {
-    await timeChar.writeValueWithoutResponse(data); // WithResponse でも可
-    alert('Sent: ' + epoch);
-  } catch (e) { alert(e); }
-};
-</script>
+        document.getElementById('connectBtn').addEventListener('click', async () => {
+            const status = document.getElementById('status');
+            status.innerHTML = ""; // Clear previous logs
+            
+            const log = (msg) => {
+                console.log(msg);
+                status.innerHTML += msg + "<br>";
+            };
+
+            try {
+                log("Requesting device (Filter by Service UUID)...");
+                
+                // Now that the packet is fixed (short name), filtering by Service UUID is the most robust method.
+                const device = await navigator.bluetooth.requestDevice({
+                    filters: [{ services: [SERVICE_UUID] }]
+                });
+
+                log("Device selected: " + device.name);
+                log("Connecting to GATT Server...");
+                const server = await device.gatt.connect();
+                
+                log("Connected. Getting Service...");
+                const service = await server.getPrimaryService(SERVICE_UUID);
+                
+                log("Getting Characteristic...");
+                const characteristic = await service.getCharacteristic(RX_UUID);
+
+                const now = new Date();
+                const timeString = now.toTimeString().split(' ')[0]; // "HH:MM:SS"
+                
+                log(`Sending time: ${timeString}...`);
+                const encoder = new TextEncoder();
+                await characteristic.writeValue(encoder.encode(timeString));
+
+                log("Success! Time synced.");
+                
+                // Optional: Disconnect after a delay or keep connected
+                setTimeout(async () => {
+                    log("Disconnecting...");
+                    await device.gatt.disconnect();
+                    log("Disconnected.");
+                }, 2000);
+
+            } catch (error) {
+                console.error(error);
+                log("<span style='color:red'>Error: " + error.message + "</span>");
+            }
+        });
+    </script>
+</body>
+</html>
